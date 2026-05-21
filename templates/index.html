@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArUco & QR Code Generator - Visual Code Builder</title>
+    <meta name="description" content="Generate customizable ArUco fiducial markers and standard QR codes instantly. Choose dictionaries, IDs, custom data, sizes, and padding.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="glow-bg"></div>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1 class="logo-text">ArUco & QR Code <span>Generator</span></h1>
+            <p class="subtitle-text">A modern, responsive utility to generate high-fidelity fiducial markers and matrix barcodes.</p>
+        </header>
+
+        <!-- Main Content Grid -->
+        <main class="main-grid">
+            
+            <!-- Settings Card -->
+            <section class="card settings-card" aria-labelledby="settings-heading">
+                <h2 id="settings-heading" class="sr-only">Configuration Settings</h2>
+                <!-- Tabs -->
+                <div class="tabs-container">
+                    <button class="tab-btn active" id="aruco-tab-btn" onclick="switchTab('aruco')">
+                        <svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <rect x="7" y="7" width="10" height="10"></rect>
+                        </svg>
+                        ArUco Marker
+                    </button>
+                    <button class="tab-btn" id="qr-tab-btn" onclick="switchTab('qr')">
+                        <svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <path d="M7 17h2v-2H7v2zm0-4h2V9H7v4zm10 4h-2v-2h2v2zm-2-4h2V9h-2v4zM7 7h10v2H7V7z"></path>
+                        </svg>
+                        QR Code
+                    </button>
+                </div>
+
+                <!-- Tab Content: ArUco -->
+                <div class="tab-content active" id="aruco-content">
+                    <form id="aruco-form" class="generator-form" onsubmit="event.preventDefault(); triggerGeneration();">
+                        <div class="form-group">
+                            <label for="aruco-dict">ArUco Dictionary</label>
+                            <select id="aruco-dict" name="dict" onchange="triggerGeneration()">
+                                {% for dict_name in dicts %}
+                                <option value="{{ dict_name }}" {% if dict_name == "DICT_6X6_250" %}selected{% endif %}>{{ dict_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="help-text">Standard dictionaries dictate grid size and id capacity.</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="aruco-id">Marker ID (Numeric)</label>
+                            <input type="number" id="aruco-id" name="id" value="1" min="0" max="999" oninput="triggerGeneration()">
+                            <small class="help-text">Select a numeric code (must exist inside the chosen dictionary).</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="aruco-size">Output Size (Pixels)</label>
+                            <div class="slider-wrapper">
+                                <input type="range" id="aruco-size-slider" min="100" max="1000" step="50" value="400" oninput="syncSizeInput('aruco')">
+                                <input type="number" id="aruco-size" name="size" value="400" min="50" max="2000" oninput="syncSizeSlider('aruco')">
+                            </div>
+                        </div>
+
+                        <div class="form-group checkbox-group">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="aruco-padding" name="padding" checked onchange="triggerGeneration()">
+                                <span class="checkmark"></span>
+                                Add Scan-Safe White Border (Recommended)
+                            </label>
+                            <small class="help-text">Adds safety padding around the marker so scanner cameras can recognize boundaries instantly.</small>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Tab Content: QR Code -->
+                <div class="tab-content" id="qr-content">
+                    <form id="qr-form" class="generator-form" onsubmit="event.preventDefault(); triggerGeneration();">
+                        <div class="form-group">
+                            <label for="qr-data">Data / Number / Text</label>
+                            <textarea id="qr-data" name="data" placeholder="Enter text, URL or numbers here..." oninput="triggerGeneration()">12345</textarea>
+                            <small class="help-text">The text or numeric sequence to encode into the QR code matrix.</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="qr-size">Output Size (Pixels)</label>
+                            <div class="slider-wrapper">
+                                <input type="range" id="qr-size-slider" min="100" max="1000" step="50" value="400" oninput="syncSizeInput('qr')">
+                                <input type="number" id="qr-size" name="size" value="400" min="50" max="2000" oninput="syncSizeSlider('qr')">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="action-wrapper">
+                    <button class="btn btn-primary" id="btn-generate" onclick="triggerGeneration()">
+                        Generate Code
+                    </button>
+                </div>
+            </section>
+
+            <!-- Preview Card -->
+            <section class="card preview-card" aria-labelledby="preview-heading">
+                <h2 id="preview-heading" class="card-title">Live Preview</h2>
+                
+                <div class="preview-stage">
+                    <div class="preview-frame" id="preview-frame">
+                        <img id="code-preview" src="" alt="Live generated code preview" style="display: none;">
+                        <div id="preview-placeholder" class="preview-placeholder">
+                            <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="1.5" fill="none" class="placeholder-icon">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                            <p>Loading interactive preview...</p>
+                        </div>
+                        <div id="loader" class="loader" style="display: none;">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preview-actions">
+                    <button class="btn btn-secondary" id="btn-download" onclick="downloadImage()">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" class="btn-icon">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download PNG
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <p>Built with Flask, OpenCV & Coffee. Runs offline. No data is stored on the server.</p>
+        </footer>
+    </div>
+
+    <!-- Main JS -->
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>
